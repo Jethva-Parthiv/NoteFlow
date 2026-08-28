@@ -27,9 +27,14 @@ Edit `.env` and fill in your keys:
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
 GROQ_API_KEY=your_groq_api_key_here
+NOTION_API_KEY=your_notion_integration_secret_here
 ```
 
-> **Note on Notion Authorization**: Notion access is handled via OAuth directly through the official remote MCP server (`https://mcp.notion.com/mcp`). On first run or connection, an OAuth browser handshake will authenticate your Notion workspace.
+> **How to get your Notion API Key**:
+> 1. Go to [Notion Integrations](https://www.notion.so/profile/integrations).
+> 2. Click **+ New integration**, name it `NoteFlow`, and copy the **Internal Integration Secret** (`ntn_...` or `secret_...`).
+> 3. In Notion, open the page(s) you want NoteFlow to have access to (or your root workspace / notes page), click the top-right `...` menu -> **Connections** -> select **NoteFlow** to grant permission.
+> 4. Paste the token into `NOTION_API_KEY` in `.env`.
 
 ### 3. Install Dependencies
 ```bash
@@ -55,8 +60,9 @@ NoteFlow_Simple/
 ├── .env                   # Local API keys (ignored from git)
 ├── README.md              # Documentation
 ├── agent/                 # Agent logic & Prompts
-│   ├── __init__.py        # Exports build_agent and process_note
-│   ├── agent.py           # LangGraph create_react_agent + Notion MCP tools
+│   ├── __init__.py        # Exports build_agent, process_note, get_notion_tools
+│   ├── agent.py           # LangGraph create_react_agent + Gemini
+│   ├── mcp.py             # Notion Remote MCP client & tool retrieval
 │   └── prompts.py         # Notion filing system prompt
 └── app/                   # Backend Web Service & Frontend Assets
     ├── main.py            # FastAPI app + routes + static mount

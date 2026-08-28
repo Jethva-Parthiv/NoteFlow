@@ -1,7 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 
+from agent.mcp import get_notion_tools
 from agent.prompts import NOTION_SYSTEM_PROMPT
 from app.config import settings
 
@@ -17,13 +17,7 @@ async def build_agent():
     if not settings.google_api_key:
         raise ValueError("GOOGLE_API_KEY is not set in environment or .env file.")
 
-    mcp_client = MultiServerMCPClient({
-        "notion": {
-            "url": settings.notion_mcp_url,
-            "transport": "streamable_http",
-        }
-    })
-    tools = await mcp_client.get_tools()
+    tools = await get_notion_tools()
     llm = ChatGoogleGenerativeAI(
         model=settings.gemini_model,
         api_key=settings.google_api_key,

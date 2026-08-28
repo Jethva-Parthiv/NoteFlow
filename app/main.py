@@ -34,6 +34,8 @@ async def health_check():
         "status": "ok",
         "google_api_key_set": bool(settings.google_api_key),
         "groq_api_key_set": bool(settings.groq_api_key),
+        "notion_api_key_set": bool(settings.notion_api_key),
+        "gemini_model": settings.gemini_model,
         "notion_mcp_url": settings.notion_mcp_url,
     }
 
