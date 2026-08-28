@@ -54,10 +54,13 @@ NoteFlow_Simple/
 ├── .env.example           # Environment template
 ├── .env                   # Local API keys (ignored from git)
 ├── README.md              # Documentation
-└── app/
+├── agent/                 # Agent logic & Prompts
+│   ├── __init__.py        # Exports build_agent and process_note
+│   ├── agent.py           # LangGraph create_react_agent + Notion MCP tools
+│   └── prompts.py         # Notion filing system prompt
+└── app/                   # Backend Web Service & Frontend Assets
     ├── main.py            # FastAPI app + routes + static mount
     ├── config.py          # Pydantic Settings (.env loader)
-    ├── agent.py           # LangGraph create_react_agent + Notion MCP tools
     ├── stt.py             # Groq Whisper STT async transcription
     ├── tts.py             # edge-tts voice synthesis
     └── static/

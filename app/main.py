@@ -1,11 +1,12 @@
 import os
+import traceback
 from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.agent import process_note
+from agent import process_note
 from app.config import settings
 from app.stt import transcribe
 from app.tts import synthesize
@@ -82,6 +83,7 @@ async def voice_note(
     try:
         confirmation_text = await process_note(transcript)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Agent filing error: {str(e)}",
