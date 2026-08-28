@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteFlow — Voice-to-Notion Personal Capture</title>
+  <meta name="description" content="Speak a thought, transcribe with Whisper, and let an intelligent agent organize and file it directly into your Notion workspace.">
+  
+  <!-- Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-background">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <main class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-wrapper">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1 class="logo-title">NoteFlow</h1>
+          <span class="logo-badge">MCP Agent</span>
+        </div>
+      </div>
+      <p class="app-subtitle">Speak your thought. The agent queries your Notion workspace and files it where it belongs.</p>
+    </header>
+
+    <!-- Main Card -->
+    <section class="main-card glass-panel" id="main-card">
+      <!-- Status Chip -->
+      <div class="status-chip-container">
+        <div class="status-chip" id="status-chip">
+          <span class="status-dot" id="status-dot"></span>
+          <span class="status-label" id="status-label">Ready to record</span>
+        </div>
+      </div>
+
+      <!-- Mic Interaction Area -->
+      <div class="record-center">
+        <div class="mic-glow-wrapper" id="mic-glow-wrapper">
+          <div class="pulse-ring ring-1"></div>
+          <div class="pulse-ring ring-2"></div>
+          <button class="mic-button" id="mic-button" aria-label="Start recording voice note">
+            <div class="mic-icon-inner" id="mic-icon-inner">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" x2="12" y1="19" y2="22"/>
+              </svg>
+            </div>
+            <div class="stop-icon-inner hidden" id="stop-icon-inner">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2.5" />
+              </svg>
+            </div>
+          </button>
+        </div>
+        
+        <!-- Live Waveform & Timer -->
+        <div class="recording-meta hidden" id="recording-meta">
+          <div class="live-bars" id="live-bars">
+            <span class="bar bar-1"></span>
+            <span class="bar bar-2"></span>
+            <span class="bar bar-3"></span>
+            <span class="bar bar-4"></span>
+            <span class="bar bar-5"></span>
+            <span class="bar bar-6"></span>
+            <span class="bar bar-7"></span>
+          </div>
+          <div class="recording-timer" id="recording-timer">00:00</div>
+        </div>
+
+        <p class="record-hint" id="record-hint">Click the microphone to start speaking</p>
+      </div>
+
+      <!-- Results Display Section -->
+      <div class="results-area hidden" id="results-area">
+        <!-- Transcript Box -->
+        <div class="result-block">
+          <div class="result-header">
+            <span class="result-badge voice-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Transcript
+            </span>
+          </div>
+          <div class="result-content transcript-text" id="transcript-text">
+            "..."
+          </div>
+        </div>
+
+        <!-- Agent Filing Confirmation -->
+        <div class="result-block confirmation-block">
+          <div class="result-header">
+            <span class="result-badge notion-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              Notion Filing
+            </span>
+            <span class="result-badge status-saved-badge">✓ Filed</span>
+          </div>
+          <div class="result-content confirmation-text" id="confirmation-text">
+            "..."
+          </div>
+        </div>
+
+        <!-- Audio Player Confirmation -->
+        <div class="audio-player-wrapper" id="audio-player-wrapper">
+          <button class="replay-button" id="replay-button" aria-label="Replay spoken confirmation">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span>Play Spoken Confirmation</span>
+          </button>
+          <audio id="confirmation-audio" preload="auto"></audio>
+        </div>
+      </div>
+
+      <!-- Text Input Fallback (Toggleable) -->
+      <div class="text-fallback-section">
+        <button class="toggle-text-btn" id="toggle-text-btn" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+          <span>Or type a quick note</span>
+        </button>
+        <form class="text-input-form hidden" id="text-input-form">
+          <div class="input-row">
+            <input 
+              type="text" 
+              id="typed-note-input" 
+              class="text-input" 
+              placeholder="e.g. Schedule meeting with Sarah on Friday at 3pm..." 
+              autocomplete="off"
+            />
+            <button type="submit" id="send-text-btn" class="send-text-btn" aria-label="Send note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-info">
+        <span>Powered by <strong>Gemini 2.5 Flash</strong> + <strong>Groq Whisper</strong> + <strong>Notion MCP</strong></span>
+      </div>
+    </footer>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

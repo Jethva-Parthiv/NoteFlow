@@ -1,0 +1,19 @@
+[project]
+name = "noteflow"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "edge-tts>=7.2.8",
+    "fastapi>=0.141.1",
+    "google-genai>=2.20.0",
+    "groq>=1.7.0",
+    "langchain-google-genai>=4.3.7",
+    "langchain-mcp-adapters>=0.3.2",
+    "langgraph>=1.2.11",
+    "pydantic-settings>=2.15.0",
+    "python-dotenv>=1.2.3",
+    "python-multipart>=0.0.32",
+    "uvicorn[standard]>=0.52.4",
+]
