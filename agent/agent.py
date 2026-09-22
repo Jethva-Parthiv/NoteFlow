@@ -1,15 +1,19 @@
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.output_parsers import StrOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.prebuilt import create_react_agent
+from langgraph.graph import START, MessagesState, StateGraph
+from langgraph.prebuilt import ToolNode, tools_condition
 
 from agent.mcp import get_notion_tools
 from agent.prompts import NOTION_SYSTEM_PROMPT
 from app.config import settings
 
 _agent_instance = None
+_output_parser = StrOutputParser()
 
 
 async def build_agent():
-    """Build and return the compiled LangGraph create_react_agent with Notion MCP tools."""
+    """Build and return a clean LangGraph StateGraph ReAct agent with Notion MCP tools."""
     global _agent_instance
     if _agent_instance is not None:
         return _agent_instance
@@ -22,24 +26,35 @@ async def build_agent():
         model=settings.gemini_model,
         api_key=settings.google_api_key,
     )
-    _agent_instance = create_react_agent(llm, tools, prompt=NOTION_SYSTEM_PROMPT)
+    llm_with_tools = llm.bind_tools(tools)
+
+    # Reasoning Node: Calls the Gemini LLM with system prompt + history
+    async def call_model(state: MessagesState):
+        messages = [SystemMessage(content=NOTION_SYSTEM_PROMPT)] + list(state["messages"])
+        response = await llm_with_tools.ainvoke(messages)
+        return {"messages": [response]}
+
+    # Define the StateGraph workflow
+    workflow = StateGraph(MessagesState)
+
+    # Add Nodes
+    workflow.add_node("agent", call_model)
+    workflow.add_node("tools", ToolNode(tools))
+
+    # Add Edges
+    workflow.add_edge(START, "agent")
+    workflow.add_conditional_edges("agent", tools_condition)
+    workflow.add_edge("tools", "agent")
+
+    _agent_instance = workflow.compile()
     return _agent_instance
 
 
 async def process_note(transcript: str) -> str:
-    """Process a note transcript through the tool-calling agent and return the confirmation sentence."""
+    """Process a note transcript through the LangGraph agent and return the confirmation sentence."""
     agent = await build_agent()
-    result = await agent.ainvoke({"messages": [{"role": "user", "content": transcript}]})
+    result = await agent.ainvoke({"messages": [HumanMessage(content=transcript)]})
     last_message = result["messages"][-1]
+    return _output_parser.invoke(last_message).strip()
 
-    if isinstance(last_message.content, str):
-        return last_message.content.strip()
-    elif isinstance(last_message.content, list):
-        parts = []
-        for block in last_message.content:
-            if isinstance(block, str):
-                parts.append(block)
-            elif isinstance(block, dict) and "text" in block:
-                parts.append(block["text"])
-        return " ".join(parts).strip()
-    return str(last_message.content).strip()
+
