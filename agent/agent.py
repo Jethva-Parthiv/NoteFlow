@@ -4,8 +4,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
+from agent.cache import get_workspace_context
 from agent.mcp import get_notion_tools
-from agent.prompts import NOTION_SYSTEM_PROMPT
+from agent.prompts import get_system_prompt
 from app.config import settings
 
 _agent_instance = None
@@ -28,9 +29,11 @@ async def build_agent():
     )
     llm_with_tools = llm.bind_tools(tools)
 
-    # Reasoning Node: Calls the Gemini LLM with system prompt + history
+    # Reasoning Node: Calls the Gemini LLM with system prompt + pre-cached workspace context + history
     async def call_model(state: MessagesState):
-        messages = [SystemMessage(content=NOTION_SYSTEM_PROMPT)] + list(state["messages"])
+        workspace_context = await get_workspace_context()
+        prompt_text = get_system_prompt(workspace_context)
+        messages = [SystemMessage(content=prompt_text)] + list(state["messages"])
         response = await llm_with_tools.ainvoke(messages)
         return {"messages": [response]}
 
