@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     notion_api_key: str = ""
     gemini_model: str = "gemini-3.1-flash-lite"
     tts_voice: str = "en-US-AriaNeural"
+    stt_language: str = "en"
     notion_mcp_url: str = "https://mcp.notion.com/mcp"
 
     # LangSmith Tracing
