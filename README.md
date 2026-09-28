@@ -1,40 +1,50 @@
-# NoteFlow — Personal Voice-to-Notion Capture Agent
+# NoteFlow — High-Speed Voice-to-Notion Capture Agent
 
-**NoteFlow** is a streamlined personal voice-note capture assistant. Speak a raw thought into the web interface, and the system:
-1. Transcribes audio via **Groq Whisper** (`whisper-large-v3-turbo`).
-2. Dispatches the transcript to a **LangGraph tool-calling agent** powered by **Gemini 2.5 Flash** with direct access to your Notion workspace via **Notion's remote MCP server** (`https://mcp.notion.com/mcp`).
-3. Formats and files the thought appropriately (searching existing pages/databases or creating an Inbox entry).
-4. Generates and plays back a spoken natural-language confirmation via **`edge-tts`**.
+**NoteFlow** is an ultra-fast, intelligent personal voice-note capture assistant. Speak a raw thought into the web interface, and NoteFlow automatically structures, formats, and files it directly into your Notion workspace in seconds.
+
+---
+
+## 🚀 Key Features & Architecture
+
+* **Plan-Once Fast-Path Execution**: Instead of multi-turn exploratory round-trips, the agent constructs and emits full formatted Markdown payloads (headings, checkboxes, bullet lists) directly in turn 1 using `notion-create-pages`.
+* **Workspace Pre-Caching**: Root pages and databases are cached in-memory (`agent/cache.py`) using `notion-list-private-pages` and `notion-list-shared-pages`, eliminating search latency on common filing destinations.
+* **Idempotent Duplicate Tool Call Interceptor**: Prevents repetitive tool loops in real time by trapping identical tool executions and instructing the model to pivot or finalize.
+* **Recursion Circuit Breaker**: Graph recursion limit with graceful exception fallbacks ensures the agent never freezes on edge cases or ambiguous speech.
+* **Robust Speech-to-Text (STT)**: Powered by Groq Whisper Large v3 Turbo, pinned to English with zero temperature and a domain vocabulary prompt hint to eliminate foreign-language hallucinations and acoustic misspellings.
+* **Remote Notion MCP Protocol**: Connects securely to official Notion tools via `mcp-remote` over stdio.
+* **Spoken Audio Confirmation**: Synthesizes and plays back natural spoken confirmations (under 15 words) using `edge-tts`.
+* **Full Observability**: Optional first-class tracing with LangSmith.
 
 ---
 
 ## ⚡ Quickstart
 
 ### 1. Prerequisites
-- [uv](https://github.com/astral-sh/uv) (Fast Python package and project manager)
-- Python 3.10+
-- Google AI Studio API key (`GOOGLE_API_KEY`)
-- Groq API key (`GROQ_API_KEY`)
+* [uv](https://github.com/astral-sh/uv) (Fast Python package and project manager)
+* Node.js / `npx` (required for Notion MCP remote stdio transport)
+* Python 3.10+
+* Google AI Studio API key (`GOOGLE_API_KEY`)
+* Groq API key (`GROQ_API_KEY`)
 
 ### 2. Setup Environment Variables
-Create a `.env` file from `.env.example`:
+Copy `.env.example` to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and fill in your keys:
+Configure your API keys in `.env`:
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
-GROQ_API_KEY=your_groq_api_key_here
-NOTION_API_KEY=your_notion_integration_secret_here
-```
+GEMINI_MODEL=gemini-3.1-flash-lite
 
-> **How to get your Notion API Key**:
-> 1. Go to [Notion Integrations](https://www.notion.so/profile/integrations).
-> 2. Click **+ New integration**, name it `NoteFlow`, and copy the **Internal Integration Secret** (`ntn_...` or `secret_...`).
-> 3. In Notion, open the page(s) you want NoteFlow to have access to (or your root workspace / notes page), click the top-right `...` menu -> **Connections** -> select **NoteFlow** to grant permission.
-> 4. Paste the token into `NOTION_API_KEY` in `.env`.
+GROQ_API_KEY=your_groq_api_key_here
+
+# Optional: LangSmith Tracing
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_langchain_api_key_here
+LANGCHAIN_PROJECT=NoteFlow
+```
 
 ### 3. Install Dependencies
 ```bash
@@ -46,7 +56,10 @@ uv sync
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
-Open `http://localhost:8000` (or `http://<your-lan-ip>:8000` on your mobile phone on the same local network) to record and file voice notes.
+> **First Run Notion Authorization**:
+> On initial startup or tool invocation, `mcp-remote` will open your default browser to authorize NoteFlow with your Notion workspace via OAuth. Once granted, tokens are cached locally.
+
+Open `http://localhost:8000` (or `http://<your-lan-ip>:8000` on your phone on the same Wi-Fi) to start capturing voice notes.
 
 ---
 
@@ -57,29 +70,32 @@ NoteFlow_Simple/
 ├── pyproject.toml         # Dependencies & project config
 ├── uv.lock                # Pinned lockfile
 ├── .env.example           # Environment template
-├── .env                   # Local API keys (ignored from git)
-├── README.md              # Documentation
-├── agent/                 # Agent logic & Prompts
-│   ├── __init__.py        # Exports build_agent, process_note, get_notion_tools
-│   ├── agent.py           # LangGraph create_react_agent + Gemini
-│   ├── mcp.py             # Notion Remote MCP client & tool retrieval
-│   └── prompts.py         # Notion filing system prompt
-└── app/                   # Backend Web Service & Frontend Assets
-    ├── main.py            # FastAPI app + routes + static mount
-    ├── config.py          # Pydantic Settings (.env loader)
-    ├── stt.py             # Groq Whisper STT async transcription
-    ├── tts.py             # edge-tts voice synthesis
+├── .env                   # Local API keys (git-ignored)
+├── README.md              # Project documentation
+├── agent/                 # Agent Logic, Routing & Tools
+│   ├── __init__.py        # Agent exports
+│   ├── agent.py           # LangGraph StateGraph + duplicate interceptor + circuit breaker
+│   ├── cache.py           # In-memory TTL cache for Notion workspace root pages
+│   ├── mcp.py             # Notion Remote MCP client connection & tools
+│   └── prompts.py         # System prompt with fast-path, anti-loop & honesty guardrails
+└── app/                   # Web Application & Audio Services
+    ├── main.py            # FastAPI service + audio upload routes + static mount
+    ├── config.py          # Pydantic Settings & environment loader
+    ├── stt.py             # Groq Whisper Large v3 Turbo transcription
+    ├── tts.py             # Microsoft edge-tts voice synthesis
     └── static/
-        ├── index.html     # Web UI with microphone & text input
-        ├── style.css      # Dark glassmorphic styling
-        └── app.js         # Recording, API calls, and audio playback
+        ├── index.html     # Web UI with voice recording & text fallback
+        ├── style.css      # Dark glassmorphic interface
+        └── app.js         # Audio recording, API requests & player
 ```
 
 ---
 
 ## 🛠 API Endpoints
 
-- `POST /api/voice-note`: Accepts `audio` (multipart file) or `text` (form field), returns `{ transcript, confirmation_text, confirmation_audio_url }`.
-- `GET /api/audio/latest.mp3`: Streams the latest synthesized audio.
-- `GET /api/health`: Verifies server status and API key configuration.
-- `GET /`: Serves the NoteFlow web UI.
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/voice-note` | Accepts `audio` (multipart file) or `text` (form field), returns `{ transcript, confirmation_text, confirmation_audio_url }` |
+| `GET` | `/api/audio/latest.mp3` | Streams the latest synthesized speech confirmation |
+| `GET` | `/api/health` | Health check verifying API keys and server status |
+| `GET` | `/` | Serves the NoteFlow web interface |
