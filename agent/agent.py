@@ -35,6 +35,15 @@ def _extract_title_from_args(args: dict) -> str:
     return ""
 
 
+NOTEFLOW_ACTIVE_TOOLS = {
+    "notion-create-pages",
+    "notion-search",
+    "notion-update-page",
+    "notion-get-page",
+    "notion-list-private-pages",
+}
+
+
 async def build_agent():
     """Build and return a Two-Tier Plan-Once Fast-Path + Adaptive ReAct LangGraph agent."""
     global _agent_instance
@@ -46,12 +55,13 @@ async def build_agent():
 
     tools = await get_notion_tools()
     tool_map = {t.name: t for t in tools}
+    bound_tools = [t for t in tools if t.name in NOTEFLOW_ACTIVE_TOOLS]
 
     llm = ChatGoogleGenerativeAI(
         model=settings.gemini_model,
         api_key=settings.google_api_key,
     )
-    llm_with_tools = llm.bind_tools(tools)
+    llm_with_tools = llm.bind_tools(bound_tools)
 
     # 1. Planner Node: Emits full composite payload in turn 1 or decides exploration is needed
     async def planner_node(state: MessagesState):
