@@ -275,7 +275,10 @@ async def build_agent():
         },
     )
 
-    _agent_instance = workflow.compile()
+    compiled_graph = workflow.compile()
+    _agent_instance = (
+        compiled_graph | (lambda state: state["messages"][-1]) | _output_parser
+    ).with_config(run_name="NoteFlowAgent")
     return _agent_instance
 
 
@@ -287,7 +290,6 @@ async def process_note(transcript: str) -> str:
             {"messages": [HumanMessage(content=transcript)]},
             config={"recursion_limit": 8},
         )
+        return str(result).strip()
     except Exception as e:
         return "Sorry, I got stuck trying to save that note. Please try again."
-    last_message = result["messages"][-1]
-    return _output_parser.invoke(last_message).strip()
