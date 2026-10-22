@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const recordingMeta = document.getElementById('recording-meta');
   const recordingTimer = document.getElementById('recording-timer');
   
+  const cancelActionWrapper = document.getElementById('cancel-action-wrapper');
+  const cancelButton = document.getElementById('cancel-button');
+  const cancelButtonText = document.getElementById('cancel-button-text');
+
   const resultsArea = document.getElementById('results-area');
   const transcriptText = document.getElementById('transcript-text');
   const confirmationText = document.getElementById('confirmation-text');
@@ -26,11 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // State
   let mediaRecorder = null;
+  let mediaStream = null;
   let audioChunks = [];
   let recordingStartTime = 0;
   let timerInterval = null;
   let isRecording = false;
   let isProcessing = false;
+  let isCancelled = false;
+  let currentAbortController = null;
 
   // Toggle Typed Note Form
   toggleTextBtn.addEventListener('click', () => {
@@ -69,6 +76,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Cancel / Stop Button Click
+  if (cancelButton) {
+    cancelButton.addEventListener('click', () => {
+      cancelCurrentTask();
+    });
+  }
+
   // Replay Audio
   replayButton.addEventListener('click', () => {
     if (confirmationAudio.src) {
@@ -77,12 +91,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function cancelCurrentTask() {
+    // 1. If currently recording audio, cancel and discard
+    if (isRecording) {
+      isCancelled = true;
+      if (timerInterval) clearInterval(timerInterval);
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+      audioChunks = [];
+      isRecording = false;
+      updateUIState('idle');
+      statusLabel.textContent = 'Recording discarded';
+      recordHint.textContent = 'Voice recording cancelled. Ready for new task.';
+      setTimeout(() => {
+        if (!isRecording && !isProcessing) {
+          statusLabel.textContent = 'Ready to record';
+          recordHint.textContent = 'Click the microphone to start speaking';
+        }
+      }, 2500);
+      return;
+    }
+
+    // 2. If currently processing an agent run, abort the HTTP request
+    if (isProcessing) {
+      isCancelled = true;
+      if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+      }
+      if (confirmationAudio) {
+        confirmationAudio.pause();
+        confirmationAudio.currentTime = 0;
+      }
+      isProcessing = false;
+      updateUIState('idle');
+      statusLabel.textContent = 'Task cancelled';
+      recordHint.textContent = 'Task was stopped. Ready for a new task.';
+      setTimeout(() => {
+        if (!isRecording && !isProcessing) {
+          statusLabel.textContent = 'Ready to record';
+          recordHint.textContent = 'Click the microphone to start speaking';
+        }
+      }, 2500);
+    }
+  }
+
   async function startRecording() {
     try {
       audioChunks = [];
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      const options = { mimeType: 'audio/webm;codecs=opus' };
+      isCancelled = false;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+        }
+      });
+      mediaStream = stream;
+
+      const options = { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 32000 };
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
         mediaRecorder = new MediaRecorder(stream, options);
       } else if (MediaRecorder.isTypeSupported('audio/webm')) {
@@ -102,6 +175,14 @@ document.addEventListener('DOMContentLoaded', () => {
       mediaRecorder.onstop = async () => {
         // Stop all audio tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+
+        // If user pressed cancel during recording, do not submit
+        if (isCancelled) {
+          isCancelled = false;
+          audioChunks = [];
+          return;
+        }
         
         if (audioChunks.length === 0) return;
         const mimeType = mediaRecorder.mimeType || 'audio/webm';
@@ -147,12 +228,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function submitNote(formData, directText = null) {
     isProcessing = true;
+    isCancelled = false;
+    currentAbortController = new AbortController();
     updateUIState('processing');
 
     try {
       const response = await fetch('/api/voice-note', {
         method: 'POST',
         body: formData,
+        signal: currentAbortController.signal,
       });
 
       const data = await response.json();
@@ -179,9 +263,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       updateUIState('success');
     } catch (err) {
+      if (err.name === 'AbortError' || isCancelled) {
+        console.log('Task was aborted by user.');
+        return; // Handled cleanly in cancelCurrentTask
+      }
       console.error('Failed to process note:', err);
       updateUIState('error', err.message || 'Failed to file note in Notion.');
     } finally {
+      currentAbortController = null;
       isProcessing = false;
     }
   }
@@ -192,6 +281,23 @@ document.addEventListener('DOMContentLoaded', () => {
     micGlowWrapper.className = 'mic-glow-wrapper';
     micButton.disabled = false;
     sendTextBtn.disabled = false;
+
+    // Update cancel button state based on active task
+    if (cancelButton) {
+      if (state === 'recording') {
+        cancelButton.disabled = false;
+        cancelButton.title = 'Cancel and discard recording';
+        if (cancelButtonText) cancelButtonText.textContent = 'Cancel Recording';
+      } else if (state === 'processing') {
+        cancelButton.disabled = false;
+        cancelButton.title = 'Stop agent run immediately';
+        if (cancelButtonText) cancelButtonText.textContent = 'Stop / Cancel Task';
+      } else {
+        cancelButton.disabled = true;
+        cancelButton.title = 'No active task to stop';
+        if (cancelButtonText) cancelButtonText.textContent = 'Stop / Cancel';
+      }
+    }
 
     if (state === 'idle') {
       statusLabel.textContent = 'Ready to record';

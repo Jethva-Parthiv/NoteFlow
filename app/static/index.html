@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
   <div class="app-background">
@@ -86,6 +86,16 @@
         </div>
 
         <p class="record-hint" id="record-hint">Click the microphone to start speaking</p>
+
+        <!-- Cancel / Stop Action Button -->
+        <div class="cancel-action-wrapper" id="cancel-action-wrapper">
+          <button type="button" class="cancel-button" id="cancel-button" aria-label="Cancel current task" disabled title="No active task to stop">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2.5" fill="currentColor" fill-opacity="0.3"></rect>
+            </svg>
+            <span id="cancel-button-text">Stop / Cancel</span>
+          </button>
+        </div>
       </div>
 
       <!-- Results Display Section -->
@@ -170,6 +180,6 @@
     </footer>
   </main>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=2"></script>
 </body>
 </html>

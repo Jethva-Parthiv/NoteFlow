@@ -1,3 +1,4 @@
+import asyncio
 import os
 import traceback
 from pathlib import Path
@@ -84,6 +85,9 @@ async def voice_note(
     # 2. Agent filing via Notion MCP
     try:
         confirmation_text = await process_note(transcript)
+    except asyncio.CancelledError:
+        print("Note filing cancelled by user.")
+        raise
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(
